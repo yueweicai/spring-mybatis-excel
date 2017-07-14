@@ -6,6 +6,7 @@ import java.util.List;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,21 +21,34 @@ import com.orilore.util.Excel;
 public class UploadExcelController {
 	@Resource
 	private InfoService service;
+	
+	@RequestMapping("/save.do")
+	public String save(HttpServletRequest request){
+		HttpSession session = request.getSession();
+		try{
+			List<Info> infos = (List<Info>) session.getAttribute("infos");
+			session.removeAttribute("infos");
+			if(infos!=null && infos.size()>0){
+				service.addInfos(infos);
+			}
+			return "success";
+		}catch(Exception ex){
+			return "error";
+		}
+	}
+	
 	@RequestMapping("/upload.do")
 	public String execute(HttpServletRequest request){
+		HttpSession session = request.getSession();
 		try{
 			MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;    
 	        InputStream in =null;  
 	        List<List<Object>> listob = null;  
 	        MultipartFile file = multipartRequest.getFile("upfile");  
-	        if(file.isEmpty()){  
-	            throw new Exception("文件不存在！"); 
-	        } 
 	        in = file.getInputStream();
 	        listob = new Excel().getBankListByExcel(in,file.getOriginalFilename());  
 	        in.close();  
 	        List<Info> infos = new ArrayList<Info>();
-	        //调用service方法进行数据保存到数据库中
 	        for (int i = 0; i < listob.size(); i++) {  
 	            List<Object> lo = listob.get(i);  
 	            Info vo = new Info();  
@@ -44,11 +58,12 @@ public class UploadExcelController {
 	            vo.setMoney(String.valueOf(lo.get(3)));  
 	            infos.add(vo);
 	        }
-	        this.service.addInfos(infos);
-	        return "success";
+	        session.setAttribute("infos", infos);
+	        return "redirect:index.do";
 		}catch(Exception ex){
 			ex.printStackTrace();
-			return "error";
+			session.setAttribute("msg",ex.getMessage());
+			return "redirect:index.do";
 		}
 	}
 }
